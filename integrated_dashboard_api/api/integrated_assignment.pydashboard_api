@@ -1,0 +1,249 @@
+from integrated_dashboard_api.db.DatabaseOperations import DatabaseOperations
+from integrated_dashboard_api.db.DatabaseTables import (
+    INTEGRATEDDASHBOARDNOTE as NOTES,
+    INTEGRATEDDASHBOARDASSIGNMENT as ASSIGN,
+)
+from integrated_dashboard_api.core.config import config_db_details
+from pydantic import BaseModel
+from typing import Dict, List, Optional, Union
+from integrated_dashboard_api.db.DatabaseSession import DatabaseSession
+from integrated_dashboard_api.api.constants import error_log_search_sql
+
+
+# INTEGRATED_DASHBOARD_ASSIGNMENT table related operations
+class ClosePayload(BaseModel):
+    workflows: list
+    root_cause: Optional[str] = None
+    close_code: Optional[str] = None
+    modified_by: Optional[str] = None
+    action: str
+
+
+class ErrorLogPayload(BaseModel):
+    PARENT_RUN_ID: Union[int, str]
+    JOB_NAME: str
+    ERROR: str
+    UPDATED_USER: str
+
+
+class BulkPayload(BaseModel):
+    workflows: list
+    error: Optional[str] = None
+    notes: Optional[str] = None
+    root_cause: Optional[str] = None
+    close_code: Optional[str] = None
+    jira: Optional[str] = None
+    snow: Optional[str] = None
+    zoom: Optional[str] = None
+    modified_by: str
+    action: str
+
+
+class Assignment:
+    def __init__(self) -> None:
+        self.dbOper = DatabaseOperations(**config_db_details)
+
+    def close_issue(self, input: ClosePayload) -> Dict:
+        close_records = []
+        for wf in input.workflows:
+            for job in wf["jobname"]:
+                temp_dict = dict(PARENT_RUN_ID=wf["PARENT_RUN_ID"], JOB_NAME=job)
+                if input.root_cause:
+                    temp_dict.update({"ROOT_CAUSE": input.root_cause})
+                if input.close_code:
+                    temp_dict.update({"CLOSE_CODE": input.close_code})
+                if input.modified_by:
+                    temp_dict.update({"UPDATED_USER": input.modified_by})
+                if (input.action).lower() == "close":
+                    temp_dict.update({"STATUS": "CLOSED"})
+                close_records.append(temp_dict)
+
+        self.dbOper.insert_on_duplicate_key_update(
+            records=close_records, tablename="INTEGRATED_DASHBOARD_ASSIGNMENT"
+        )
+        return {"msg": "Successful"}
+
+    def bulk_update(self, input: BulkPayload) -> Dict:
+        bulk_records = []
+        bulk_notes = []
+
+        flag_notes = 0
+        for wf in input.workflows:
+            for job in wf["jobname"]:
+                temp_dict = dict(
+                    PARENT_RUN_ID=wf["PARENT_RUN_ID"],
+                    JOB_NAME=job,
+                    UPDATED_USER=input.modified_by,
+                )
+                temp_notes = dict(temp_dict)
+
+                if input.error:
+                    temp_dict.update({"ERROR": input.error})
+                if input.root_cause:
+                    temp_dict.update({"ROOT_CAUSE": input.root_cause})
+                if input.close_code:
+                    temp_dict.update({"CLOSE_CODE": input.close_code})
+                if input.jira:
+                    temp_dict.update({"JIRA": input.jira})
+                if input.snow:
+                    temp_dict.update({"SERVICE_NOW": input.snow})
+                if input.zoom:
+                    temp_dict.update({"ZOOM_LINK": input.zoom})
+                if input.notes:
+                    flag_notes = 1
+                    temp_notes.update({"Notes": input.notes})
+                if (input.action).lower() == "close":
+                    temp_dict.update({"STATUS": "CLOSED"})
+                bulk_records.append(temp_dict)
+                bulk_notes.append(temp_notes)
+
+        if len(bulk_records[0]) > 3:
+            with DatabaseSession(**config_db_details) as session:
+                session.bulk_update_mappings(ASSIGN, bulk_records)
+                session.commit()
+
+        if flag_notes == 1:
+            self.dbOper.insert_on_duplicate_key_update(
+                records=bulk_notes, tablename="INTEGRATED_DASHBOARD_NOTES"
+            )
+
+        return {"msg": "Successful"}
+
+    def capture_errorlog(self, payload: ErrorLogPayload) -> Dict[str, str]:
+        self.dbOper.insert_on_duplicate_key_update(
+            tablename="INTEGRATED_DASHBOARD_ASSIGNMENT", records=[payload.dict()]
+        )
+        return {"msg": "Successfully added the error log"}
+
+    def error_log_search(self, pattern: str) -> List[Optional[Dict]]:
+        """Search past records where a similar error has occured matching the search
+        pattern.
+
+        Args:
+            pattern (str): pattern string. This can be a regular text or regex
+
+        Returns:
+            List[Optional[Dict]]: Returns array of objects matching the pattern with
+                relevant details from past investigations.
+        """
+        with DatabaseSession(**config_db_details) as session:
+            res = session.execute(error_log_search_sql.format(search_pattern=pattern))
+        return [dict(row) for row in res]
+
+    def assignTicket(self, tickets):
+        workflows = getattr(tickets, "workflows")
+        JIRA = getattr(tickets, "JIRA")
+        SERVICE_NOW = getattr(tickets, "SERVICE_NOW")
+        ZOOM_LINK = getattr(tickets, "ZOOM_LINK")
+        prun_id = [jobp["PARENT_RUN_ID"] for jobp in workflows]
+        with DatabaseSession(**config_db_details) as session:
+            if JIRA:
+                for r in prun_id:
+                    q1 = f"""
+                    update INTEGRATED_DASHBOARD_ASSIGNMENT set
+                    JIRA = '{JIRA}'
+                    WHERE PARENT_RUN_ID = '{r}' """
+                    session.execute(q1)
+                    session.commit()
+            if SERVICE_NOW:
+                for r in prun_id:
+                    q2 = f"""
+                    update INTEGRATED_DASHBOARD_ASSIGNMENT set
+                    SERVICE_NOW = '{SERVICE_NOW}'
+                    WHERE PARENT_RUN_ID = '{r}'"""
+                    session.execute(q2)
+                    session.commit()
+            if ZOOM_LINK:
+                for r in prun_id:
+                    q3 = f"""
+                    update INTEGRATED_DASHBOARD_ASSIGNMENT set
+                    ZOOM_LINK = '{ZOOM_LINK}'
+                    WHERE PARENT_RUN_ID = '{r}'"""
+                    session.execute(q3)
+                    session.commit()
+
+
+# INTEGRATED_DASHBOARD_NOTES table operations
+class NewNote(BaseModel):
+    PARENT_RUN_ID: Union[int, str]
+    JOB_NAME: str
+    Notes: str
+    CREATED_USER: str
+    UPDATED_USER: str
+
+
+class EditNote(BaseModel):
+    NOTES_SKEY: int
+    Notes: str
+    UPDATED_USER: str
+
+
+class AssignInfo(BaseModel):
+    workflows: List[Dict]
+    JIRA: str
+    SERVICE_NOW: str
+    ZOOM_LINK: str
+
+
+class NotesInfo(BaseModel):
+    TEAM: str
+    SHIFT: str
+    SHIFT_DATE: str
+    USER: str
+    ONCALL_SUMMARY: str
+    UPDATED_USER: str
+
+
+class Send_Mail_Input(BaseModel):
+    team_shift: str
+    to_list: list
+    from_list: list
+    sender_name: str
+
+
+class AssignmentNotes:
+    def __init__(self) -> None:
+        self.table = "INTEGRATED_DASHBOARD_NOTES"
+        self.dbOper = DatabaseOperations(**config_db_details)
+
+    def add_note(self, note: NewNote) -> Dict:
+        self.dbOper.insert(tablename=self.table, columns=note.dict())
+        return {"msg": "Successfully inserted record."}
+
+    def edit_note(self, note: EditNote) -> Dict:
+        self.dbOper.insert_on_duplicate_key_update(tablename=self.table, records=[note.dict()])
+        return {"msg": "Successfully updated record."}
+
+    def fetch_user_notes(self, wf_run_id: Union[int, str], job_name: str) -> List[Dict]:
+        with DatabaseSession(**config_db_details) as session:
+            result = (
+                session.query(
+                    NOTES.NOTES_SKEY,
+                    NOTES.PARENT_RUN_ID,
+                    NOTES.JOB_NAME,
+                    NOTES.Notes,
+                    NOTES.UPDATED_USER,
+                    NOTES.UPDATED_DT,
+                )
+                .filter(NOTES.PARENT_RUN_ID == wf_run_id, NOTES.JOB_NAME == job_name)
+                .order_by(NOTES.NOTES_SKEY.desc())
+                .all()
+            )
+        return [dict(row) for row in result]
+
+
+if __name__ == "__main__":
+    notesObj = NewNote(
+        PARENT_RUN_ID=497322328,
+        JOB_NAME="JOBS.SC.USWM.SC.BKHL.INV.INCR.DQ",
+        CREATED_USER="Ganesh Shet",
+        UPDATED_USER="Ganesh Shet",
+        Notes="Adding 2nd note from the API",
+    )
+    modifyObj = EditNote(
+        NOTES_SKEY=1492, Notes="Modifying notes from API", UPDATED_USER="Ganesh Shet"
+    )
+    obj = AssignmentNotes()
+    print(obj.add_note(notesObj))
+    print(obj.edit_note(modifyObj))
+    print(obj.fetch_user_notes(wf_run_id=497322328, job_name="JOBS.SC.USWM.SC.BKHL.INV.INCR.DQ"))
