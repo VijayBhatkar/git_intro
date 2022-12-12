@@ -18,3 +18,36 @@ find  /edge_log/svc*/*.log  -mtime +120 -exec ls -l {} \;
 find  .  -mtime +97  -exec rm -rf {} \;
 
 find  .  -mtime +90 -user $u -exec rm -rf {} \;
+
+Find Automic Job name from Application ID 
+
+find . -type f -mtime -2 -print0 | xargs -0 grep -l application_1643770739314_129343
+
+#!/bin/bash
+for i in `cat app_id.txt |grep -v "#"`
+do
+##cd /u/users/automic/automic/out;
+cd /u/users/appaorta/automic/current/agent/temp;
+TXT="`grep $i * |head -1 |awk '{print $1}' |cut -d ":" -f1`"
+#head -3 /u/users/automic/automic/out/OAQVYTCG.TXT |grep JOB |awk '{print $3}'
+if [[ ! -z "$TXT" ]];then
+#run_id=`head -3 $TXT |grep JOB |awk '{print $3}'`
+run_id=`head -10 $TXT |grep JOB |awk '{print $3}'`
+echo -e "App id: $i \t Run id:$run_id"
+else
+echo -e "No Run id found for this app id $i"
+fi
+done
+
+Test
+application_1641433977792_4017
+application_1641433977792_4013 
+OBEQWNQJ.TXT
+
+head -3 /u/users/automic/automic/out/OBEQWNQJ.TXT |grep JOB |awk '{print $3}'
+
+To move file
+
+find . -mtime +3 -exec mv "{}" /hadoopfs/fs1/logs/spark_logs/ \;
+
+
