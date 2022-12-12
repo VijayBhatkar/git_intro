@@ -1,0 +1,20 @@
+# to delete logs older than 30 days under /edge_date/<serviceid>
+0 2 * * * /root/logscleanup.sh >> /tmp/logscleanup.log 2>&1
+[root@edgenode-mgmt-development ~]# cat /root/logscleanup.sh
+#! /bin/bash
+USER=/u/users
+for u in $(ls /u/users | grep svc | awk '{print $1}')
+do
+find  /edge_log/$u/*.log  -mtime +30 -user $u -exec rm -rf {} \;
+done
+You have new mail in /var/spool/mail/root
+[root@edgenode-mgmt-development ~]#
+
+
+find  /edge_log/$u/*.log  -mtime +30 -user $u -exec rm -rf {} \;
+
+find  /edge_log/svc*/*.log  -mtime +120 -exec ls -l {} \;
+
+find  .  -mtime +97  -exec rm -rf {} \;
+
+find  .  -mtime +90 -user $u -exec rm -rf {} \;
