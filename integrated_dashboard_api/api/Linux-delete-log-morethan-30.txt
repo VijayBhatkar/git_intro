@@ -50,4 +50,22 @@ To move file
 
 find . -mtime +3 -exec mv "{}" /hadoopfs/fs1/logs/spark_logs/ \;
 
+Soft Link
+
+ln -s SOURCE_FILE LINK_NAME
+ln -s /user/downloads/test.txt myfile.txt
+unlink LINK_NAME
+ln -sfn /edge_data/code/svcwwse /u/users/svcwwse/code
+
+ln -sfn /edge_data/code/svcordrdats /u/users/svcordrdats/code
+
+
+.svcwwse.keytab -> /edge_data/key/svcwwse.keytab
+
+ln -sfn /edge_data/key/svcgcpk1ns.keytab .svcgcpk1ns.keytab
+
+.svcfindatns.keytab -> /edge_data/key/svcfindatns.keytab
+
+ln -sfn /edge_data/key/svcfindatns.keytab .svcfindatns.keytab
+
 
