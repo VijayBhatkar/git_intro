@@ -1,0 +1,47 @@
+Python Virtual Envn
+
+python3 -m venv /edge_data/code/svcdlake
+
+python3 -m pip install --user virtualenv
+
+python -m /u/users/svcctlgdatns/software/venv/virtualenv /edge_data/code/svcctlgdatns/venv/lmd_python2_venv
+
+source /edge_data/code/svclmddats/venv/lmd_python3_venv/bin/activate
+
+pip3 install virtualenv
+
+which virtualenv
+
+/u/users/svcwwns
+
+[1] Python-02
+Actual Command :- 
+# virtualenv -p $(which python) /edge_data/code/svcwwns/venv/lmd_python2_venv
+source /edge_data/code/svcwwns/venv/lmd_python2_venv/bin/activate
+[2] Python-03
+python3 -m venv /edge_data/code/svcdlake
+
+python3 -m venv /edge_data/code/svcfindatns/venv
+
+source /edge_data/code/svcfindatns/venv/bin/activate
+
+we have py2 on  /edge_data/code/svcfindatns/venv
+Ravi Ramaiyer
+
+source /edge_data/code/svcfindatns/venv/python2/bin/activate
+
+virtualenv -p $(which python) /edge_data/code/svcfindatns/venv/python2
+
+https://jira.walmart.com/browse/GDAPFNBDCM-62877
+
+cp -r /edge_data/code/svcfindatns/venv/python3/include/ /edge_data/code/svcfindatns/venv/python2/
+
+requests
+
+source /edge_data/code/svcfindatns/venv/python2/bin/activate
+
+yamllint
+
+Python2 Command to create V Env :- virtualenv -p $(which python) /edge_data/code/svcfindatns/venv/python2
+
+For Python3 :- python3 -m venv /edge_data/code/svcfindatns/venv/python3
